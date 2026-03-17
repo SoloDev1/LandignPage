@@ -287,6 +287,7 @@ export default function App() {
   });
 
   const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
   const [result, setResult] = useState<GenerationResult | null>(null);
   const [activeTab, setActiveTab] = useState<'preview' | 'code' | 'ads' | 'brief'>('code');
   const [previewMode, setPreviewMode] = useState<'desktop' | 'mobile'>('desktop');
@@ -307,9 +308,63 @@ export default function App() {
   const generateContent = async () => {
     if (!formData.productName) return;
     setLoading(true);
+    setError(null);
     try {
-      const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
-      const model = ai.models.generateContent({
+      const apiKey = process.env.GEMINI_API_KEY;
+      if (!apiKey) {
+        throw new Error("Gemini API Key is missing. Please check your environment variables.");
+      }
+      const ai = new GoogleGenAI({ apiKey });
+
+      const stripBase64 = (base64: string) => {
+        if (!base64) return null;
+        const parts = base64.split(',');
+        return parts.length > 1 ? parts[1] : parts[0];
+      };
+
+      const parts: any[] = [
+        {
+          text: `
+            Product Name: ${formData.productName}
+            What it does: ${formData.whatItDoes}
+            Key benefit: ${formData.keyBenefit}
+            Target audience: ${formData.targetAudience}
+            Market: ${formData.market}
+            Price: ${formData.price}
+            WhatsApp number: ${formData.whatsappNumber}
+            Email: ${formData.email}
+            Brand colors: ${formData.brandColors}
+            Tone: ${formData.tone}
+            Special notes: ${formData.specialNotes}
+          `
+        }
+      ];
+
+      if (formData.logo) {
+        const logoData = stripBase64(formData.logo);
+        if (logoData) {
+          parts.push({
+            inlineData: {
+              mimeType: "image/png",
+              data: logoData
+            }
+          });
+        }
+      }
+
+      formData.productImages.forEach((img) => {
+        const imgData = stripBase64(img);
+        if (imgData) {
+          parts.push({
+            inlineData: {
+              mimeType: "image/png",
+              data: imgData
+            }
+          });
+        }
+      });
+
+      const response = await ai.models.generateContent({
         model: "gemini-3.1-pro-preview",
         config: {
           systemInstruction: SYSTEM_PROMPT,
@@ -324,32 +379,19 @@ export default function App() {
             required: ["landingPage", "adCopy", "creativeBrief"]
           }
         },
-        contents: `
-          Product Name: ${formData.productName}
-          What it does: ${formData.whatItDoes}
-          Key benefit: ${formData.keyBenefit}
-          Target audience: ${formData.targetAudience}
-          Market: ${formData.market}
-          Price: ${formData.price}
-          WhatsApp number: ${formData.whatsappNumber}
-          Email: ${formData.email}
-          Brand colors: ${formData.brandColors}
-          Tone: ${formData.tone}
-          Special notes: ${formData.specialNotes}
-          Logo Data: ${formData.logo ? "Provided (Base64)" : "Not provided"}
-          Product Images: ${formData.productImages.length > 0 ? `${formData.productImages.length} images provided (Base64)` : "Not provided"}
-          
-          ${formData.logo ? `LOGO_BASE64: ${formData.logo}` : ""}
-          ${formData.productImages.map((img, i) => `PRODUCT_IMAGE_${i + 1}_BASE64: ${img}`).join('\n')}
-        `
+        contents: { parts }
       });
 
-      const response = await model;
-      const data = JSON.parse(response.text || '{}') as GenerationResult;
+      if (!response.text) {
+        throw new Error("No response received from AI.");
+      }
+
+      const data = JSON.parse(response.text) as GenerationResult;
       setResult(data);
-      setActiveTab('code');
-    } catch (error) {
-      console.error("Generation failed:", error);
+      setActiveTab('preview');
+    } catch (err: any) {
+      console.error("Generation failed:", err);
+      setError(err.message || "An unexpected error occurred during generation.");
     } finally {
       setLoading(false);
     }
@@ -375,6 +417,7 @@ export default function App() {
             formData={formData} 
             setFormData={setFormData}
             loading={loading}
+            error={error}
             result={result}
             activeTab={activeTab}
             setActiveTab={setActiveTab}
@@ -730,6 +773,7 @@ const AppPage = ({
   formData, 
   setFormData, 
   loading, 
+  error,
   result, 
   activeTab, 
   setActiveTab, 
@@ -811,6 +855,17 @@ const AppPage = ({
               placeholder="e.g. ₦8,500" 
             />
           </div>
+
+          {error && (
+            <motion.div 
+              initial={{ opacity: 0, height: 0 }}
+              animate={{ opacity: 1, height: 'auto' }}
+              className="p-3 bg-red-500/10 border border-red-500/20 rounded-xl text-red-500 text-xs flex items-center gap-2"
+            >
+              <X className="w-3 h-3 flex-shrink-0" />
+              <p>{error}</p>
+            </motion.div>
+          )}
           
           <button 
             onClick={generateContent}
