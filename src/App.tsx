@@ -25,6 +25,8 @@ import {
   Zap,
   Upload,
   X,
+  Download,
+  ExternalLink,
   Image as ImageIcon
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
@@ -39,26 +41,30 @@ Every time I give you a product or client brief, you will produce THREE delivera
 
 ---
 
-### DELIVERABLE 1: HIGH-END SaaS PRODUCT PAGE
+### DELIVERABLE 1: HTML LANDING PAGE
+Build a single self-contained HTML file (all CSS and JS inline — no external dependencies except Google Fonts).
 
-Build a single self-contained HTML file (all CSS and JS inline).
+Mandatory page structure — in this exact order:
+1. Sticky NAV BAR — Logo + WhatsApp CTA button
+2. HERO SECTION — Bold headline + subheadline + primary CTA
+3. PROBLEM SECTION — Agitate the pain point (2–3 statements)
+4. SOLUTION SECTION — Product as the answer, 3 key benefits
+5. SOCIAL PROOF — Minimum 3 testimonials with names and locations
+6. HOW IT WORKS — 3-step process (Order → Receive → Transform)
+7. OFFER SECTION — Price, what's included, urgency element
+8. FAQ SECTION — 4–6 objection-handling questions
+9. FINAL CTA — Repeat hero CTA + WhatsApp float button
+10. EMAIL FORM — Name + Email capture with trust line
+11. FOOTER — Contact info, social links
 
-Design Philosophy:
-- Minimalist, high-end SaaS aesthetic (think Linear, Vercel, or Apple)
-- Black and white palette with one subtle accent color if specified
-- Large, confident typography (Space Grotesk or similar)
-- Generous white space and clear visual hierarchy
-
-Mandatory page structure:
-1. SLIM NAV: Logo (left), "Features", "Pricing", "FAQ" links (center), Primary CTA (right)
-2. HERO: Massive headline (64px+), descriptive subheadline, Primary CTA + "No credit card required" micro-copy
-3. FEATURE GRID: 3-4 key features with clean icons and benefit-led descriptions
-4. PROOF: "Trusted by" logo bar + 3 high-quality testimonials
-5. PRODUCT SHOWCASE: Large image placeholder/container for the product asset
-6. PRICING: Simple, clear pricing table with "Most Popular" badge
-7. FAQ: Clean accordion-style FAQ section
-8. FOOTER: Multi-column footer with links and copyright
-9. WHATSAPP FLOAT: Fixed bottom-right green button for direct support
+Design rules (non-negotiable):
+- NO purple gradients, NO Inter/Roboto fonts, NO generic centered layouts
+- Choose a bold aesthetic matching the brand: luxury dark, earthy wellness, vibrant Nigerian energy, etc.
+- Pair a distinctive display font (Playfair Display, Bebas Neue, Cormorant Garamond) with a clean body font
+- WhatsApp float button: fixed bottom-right, green (#25D366), always visible
+- Mobile-first: all sections responsive at 375px width
+- Subtle fade-up scroll animations using IntersectionObserver (no heavy libraries)
+- CTA buttons: high contrast, minimum 48px height on mobile
 
 WhatsApp CTA format:
 <a href="https://wa.me/[NUMBER]?text=[URLENCODEDMESSAGE]" target="_blank">Chat on WhatsApp</a>
@@ -74,7 +80,6 @@ Email form: First Name + Email fields. Branded submit button. Add: "No spam. We 
 ---
 
 ### DELIVERABLE 2: FACEBOOK / META AD COPY SET
-
 Produce 3 ad variants (A/B/C) targeting different psychological angles.
 
 Structure for each variant:
@@ -93,7 +98,6 @@ The 3 angles are always:
 ---
 
 ### DELIVERABLE 3: CREATIVE BRIEF (for Canva / Midjourney / DALL-E / Ideogram)
-
 For each of the 3 ad variants, produce:
 CREATIVE BRIEF — Variant [A/B/C]
 FORMAT: [1080×1080 Feed / 1080×1920 Story / 1200×628 Link Ad]
@@ -107,7 +111,6 @@ AI IMAGE PROMPT (paste directly into Midjourney/DALL-E/Ideogram): "[Complete rea
 ---
 
 ### MARKET INTELLIGENCE — APPLY AUTOMATICALLY
-
 Nigerian / West African market:
 - Direct, confident language — boldness and social proof convert here
 - Trust signals: "100% Natural", "Tested & Trusted", "NAFDAC Approved" where relevant
@@ -336,6 +339,9 @@ export default function App() {
             Brand colors: ${formData.brandColors}
             Tone: ${formData.tone}
             Special notes: ${formData.specialNotes}
+
+            ${formData.logo ? `LOGO_BASE64: ${formData.logo}` : ""}
+            ${formData.productImages.map((img, i) => `PRODUCT_IMAGE_${i + 1}_BASE64: ${img}`).join('\n')}
           `
         }
       ];
@@ -403,6 +409,26 @@ export default function App() {
     setTimeout(() => setCopied(false), 2000);
   };
 
+  const downloadHtml = () => {
+    if (!result) return;
+    const blob = new Blob([result.landingPage], { type: 'text/html' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `${formData.productName.toLowerCase().replace(/\s+/g, '-')}-landing-page.html`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  };
+
+  const openLivePreview = () => {
+    if (!result) return;
+    const blob = new Blob([result.landingPage], { type: 'text/html' });
+    const url = URL.createObjectURL(blob);
+    window.open(url, '_blank');
+  };
+
   const renderPage = () => {
     switch (currentPage) {
       case 'product':
@@ -429,6 +455,8 @@ export default function App() {
             handleProductImageUpload={handleProductImageUpload}
             generateContent={generateContent}
             copyToClipboard={copyToClipboard}
+            downloadHtml={downloadHtml}
+            openLivePreview={openLivePreview}
           />
         );
       default:
@@ -784,7 +812,9 @@ const AppPage = ({
   handleLogoUpload, 
   handleProductImageUpload, 
   generateContent, 
-  copyToClipboard 
+  copyToClipboard,
+  downloadHtml,
+  openLivePreview
 }: any) => (
   <main className="pt-40 pb-20 px-6">
     <div className="max-w-7xl mx-auto grid grid-cols-1 lg:grid-cols-12 gap-12">
@@ -830,7 +860,14 @@ const AppPage = ({
             name="keyBenefit" 
             value={formData.keyBenefit} 
             onChange={handleInputChange} 
-            placeholder="The main advantage" 
+            placeholder="e.g. Feel lighter and more energetic within 7 days" 
+          />
+          <InputField 
+            label="Target Audience" 
+            name="targetAudience" 
+            value={formData.targetAudience} 
+            onChange={handleInputChange} 
+            placeholder="e.g. Nigerian women 25–45 dealing with bloating" 
           />
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-1.5">
@@ -855,6 +892,49 @@ const AppPage = ({
               placeholder="e.g. ₦8,500" 
             />
           </div>
+
+          <div className="grid grid-cols-2 gap-4">
+            <InputField 
+              label="WhatsApp Number" 
+              name="whatsappNumber" 
+              value={formData.whatsappNumber} 
+              onChange={handleInputChange} 
+              placeholder="e.g. +234..." 
+            />
+            <InputField 
+              label="Email" 
+              name="email" 
+              value={formData.email} 
+              onChange={handleInputChange} 
+              placeholder="e.g. orders@..." 
+            />
+          </div>
+
+          <div className="grid grid-cols-2 gap-4">
+            <InputField 
+              label="Brand Colors" 
+              name="brandColors" 
+              value={formData.brandColors} 
+              onChange={handleInputChange} 
+              placeholder="e.g. Deep green + gold" 
+            />
+            <InputField 
+              label="Tone" 
+              name="tone" 
+              value={formData.tone} 
+              onChange={handleInputChange} 
+              placeholder="e.g. Warm, trustworthy" 
+            />
+          </div>
+
+          <InputField 
+            label="Special Notes" 
+            name="specialNotes" 
+            value={formData.specialNotes} 
+            onChange={handleInputChange} 
+            placeholder="e.g. NAFDAC approved, ships nationwide" 
+            multiline
+          />
 
           {error && (
             <motion.div 
@@ -956,11 +1036,30 @@ const AppPage = ({
 
                 <button 
                   onClick={() => copyToClipboard(activeTab === 'preview' || activeTab === 'code' ? result.landingPage : activeTab === 'ads' ? result.adCopy : result.creativeBrief)}
-                  className="flex items-center gap-2 px-3 py-1.5 text-xs font-medium text-ink/60 hover:text-ink transition-colors"
+                  className="flex items-center gap-2 px-3 py-1.5 text-xs font-medium text-ink/60 hover:text-ink transition-colors border-r border-border pr-4"
                 >
                   {copied ? <Check className="w-3.5 h-3.5 text-green-500" /> : <Copy className="w-3.5 h-3.5" />}
                   {copied ? 'Copied' : 'Copy'}
                 </button>
+
+                {(activeTab === 'preview' || activeTab === 'code') && (
+                  <>
+                    <button 
+                      onClick={openLivePreview}
+                      className="flex items-center gap-2 px-3 py-1.5 text-xs font-medium text-ink/60 hover:text-ink transition-colors"
+                    >
+                      <ExternalLink className="w-3.5 h-3.5" />
+                      Live View
+                    </button>
+                    <button 
+                      onClick={downloadHtml}
+                      className="flex items-center gap-2 px-3 py-1.5 text-xs font-medium text-accent hover:text-accent-hover transition-colors"
+                    >
+                      <Download className="w-3.5 h-3.5" />
+                      Download
+                    </button>
+                  </>
+                )}
               </div>
             </div>
 
